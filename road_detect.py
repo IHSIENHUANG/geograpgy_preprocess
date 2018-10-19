@@ -1,63 +1,72 @@
 
 # coding: utf-8
 
-# In[145]:
+# In[382]:
 
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 
-# In[146]:
+# In[383]:
 
 data = pd.read_excel('./Network_LA/uc6_locals_junc_pair_v1.xlsx')
 print (data.head(10))
 
 
-# In[138]:
+# In[431]:
 
-testing_data = []
-multiple_road = {} # store which junction coneected to more than two roads
-dic = {} # store junction A connected to junction B
-street_id = {} # store pair of junction with the edge
+
+'''
 for LinkID,JID1,JID2,StName in zip(data['LinkID'],data['JID1'],data['JID2'],data['StName']):
     if "Pioneer Blvd" in StName:
         testing_data.append([LinkID,JID1,JID2,StName])
-
-testing_data = sorted(testing_data,key=lambda x:x[1])
-for row in testing_data:
-    if row[1] not in dic:
-        dic[row[1]] = [row[2]]
-    elif row[2] not in dic[row[1]]:
-        dic[row[1]].append(row[2])
+'''
+def Build_dict(df):
+    #print (df)
+    #df = sorted(df,key=lambda x:x[1])
+    print ("ending building dictionary with one street name data")
+    #testing_data = sorted(testing_data,key=lambda x:x[1])
+    #print (testing_data)
+    multiple_road = {} # store which junction coneected to more than two roads
+    dic = {} # store junction A connected to junction B
+    street_id = {} # store pair of junction with the edge
     
-    if row[2] not in dic:
-        dic[row[2]] = [row[1]]
-    elif row[1] not in dic[row[2]]:
-        dic[row[2]].append(row[1])
-        
-    smaller = row[1]
-    bigger = row[2]
-    if smaller > bigger:
-        smaller,bigger = bigger,smaller
-    street_id[(smaller,bigger)] = row[0]
+    for i in range(len(df)):
+        row = df.iloc[i,:]
+    #    print (row[0],row[1],row[2])
+    #for row in df:
+    #    print ("row is = ",row)
+        if row[1] not in dic:
+            dic[row[1]] = [row[2]]
+        elif row[2] not in dic[row[1]]:
+            dic[row[1]].append(row[2])
+        if row[2] not in dic:
+            dic[row[2]] = [row[1]]
+        elif row[1] not in dic[row[2]]:
+            dic[row[2]].append(row[1])
+        smaller,bigger = min(row[1],row[2]),max(row[1],row[2])
+        street_id[(smaller,bigger)] = row[0]
+    for num in dic:
+        if len(set(dic[num])) >=3:
+            multiple_road[num] = dic[num]
+    #print (multiple_road)
+    print ("end reading data")
+    return multiple_road,dic,street_id
     
-    #print (row)
-
-for num in dic:
-    if len(set(dic[num])) >=3:
-        multiple_road[num] = dic[num]
-#print (multiple_road)
-print ("end reading data")
 
 
-# In[139]:
+# In[432]:
 
 #Utilize the DFS to find all the circle with the main street name
 #it might contains a lot of circles
 #However, we can know that # unique group of circle is not as many as original one 
+#seen recorded sorted edge
+#seen_pt record path of pt
+#seen_edge record edges of path
 def DFS(path,pre_element,next_element,seen,seen_pt,seen_edge):#seen saved the seen path
     if next_element in path:# it means head to head
-        path = path+[next_element]   
+        #path = path+[next_element]   
         path = path[path.index(next_element):]
         cur_street = []
         for index in range(len(path)-1):
@@ -84,25 +93,7 @@ def DFS(path,pre_element,next_element,seen,seen_pt,seen_edge):#seen saved the se
     return path
 
 
-# In[140]:
-
-#seen recorded sorted edge
-#seen_pt record path of pt
-#seen_edge record edges of path
-seen = [] # record the route edge
-seen_edge = []
-seen_pt = [] # record the  route point
-for start_pos in multiple_road:
-    for i in multiple_road[start_pos]:
-        if DFS([start_pos],start_pos,i,seen,seen_pt,seen_edge) != None:
-            break
-print (len(seen))
-seen = sorted(seen,key = lambda x:len(x))
-seen_pt = sorted(seen_pt,key = lambda x:len(x))
-seen_edge = sorted(seen_edge,key = lambda x:len(x))
-
-
-# In[141]:
+# In[433]:
 
 # Because some circle should be sub-circle of the larger one
 # We need to Union all of them and find out how many group of large circle
@@ -131,7 +122,7 @@ def find_group_circle(seen_pt,seen_edge): # union all the circle and find out un
     return dif_group_pt,dif_group_edge
 
 
-# In[142]:
+# In[434]:
 
 
 # read_pos:
@@ -162,7 +153,7 @@ def read_critical_pt(N_S_Flag,X_pos,Y_pos,route_pt,route_edge): #Use the directi
     #print (route_pt)
     critical_pt1= critical_pt2 = -1 # store the boundary pt
     if N_S_Flag == True:
-        print ("north_south_dir")
+        #print ("north_south_dir")
         critical_pt1 = Y_pos.index(max(Y_pos)) # find the northest pt index
         critical_pt1 = route_pt[critical_pt1] # get the id of the point
         critical_pt2 = Y_pos.index(min(Y_pos)) # find the southest pt index
@@ -172,110 +163,142 @@ def read_critical_pt(N_S_Flag,X_pos,Y_pos,route_pt,route_edge): #Use the directi
         critical_pt1 = route_pt[critical_pt1] # get the id of the point
         critical_pt2 = X_pos.index(min(X_pos)) # find the westest pt index
         critical_pt2 = route_pt[critical_pt2] # get the id of the point
-        print ("east_west_dir")
+        #print ("east_west_dir")
     print ("critical pt=",critical_pt1,critical_pt2)
     return get_the_route_by_critical_pt(critical_pt1,critical_pt2,route_pt,route_edge)
 def get_the_route_by_critical_pt(critical_pt1,critical_pt2,route_pt,route_edge):
-    print ("------------start_get_the_critical_pt---------------")
-    #print (route_pt)
+    print ("------------start_get_route---------------")
+    print (route_pt)
     start_index = route_pt.index(critical_pt1)
     end_index = route_pt.index(critical_pt2)
     #print ("path index = ",start_index,end_index)
     start_index,end_index = min(start_index,end_index),max(start_index,end_index)
     if end_index - start_index+1 > int(len(route_pt)/2):
-        print ("From start to end")
-        route_pt =route_pt[start_index:end_index+1]
-        route_edge= route_edge[start_index:end_index]
+        #print ("From start to end")
+        route_pt_saved =route_pt[start_index:end_index+1]
+        route_edge_saved= route_edge[start_index:end_index]
     else:
-        route_pt =route_pt[end_index:] + route_pt[:start_index+1]
-        route_edge= route_edge[end_index:] + route_edge[:start_index]
-    for pt_id in route_pt:
-        print ("or \"id\" = ",pt_id)
-    for edge in route_edge:
-        print ("or \"LinkID\" = ",edge)
-    return route_edge,route_pt
-
-
-# In[143]:
-
-filename = "./Network_LA/uc6_02_05_UTM_locals_ND_Junctions.xlsx"
-dif_group_pt,dif_group_edge = find_group_circle(seen_pt,seen_edge)
-for route_pt,route_edge in zip(dif_group_pt,dif_group_edge):
-    print ("\n\nnew round",route_pt)
-    print ("path =",read_pos(filename,route_pt,route_edge))
-
-
-# In[161]:
-
-data = pd.read_excel('./Network_LA/uc6_locals_junc_pair_v1.xlsx')
-Street_Name = {} # record which index is store in the name of streer
-Direction = ['E','N','S','W']
-for index,(LinkID,JID1,JID2,StName) in enumerate(zip(data['LinkID'],data['JID1'],data['JID2'],data['StName'])):
-    Main_StName = StName.split(" ")
-    if Main_StName[0] in Direction:
-        Main_StName = Main_StName[1:]
-    if Main_StName[-1] in Direction:
-        Main_StName = Main_StName[:-1]
-    Main_StName= ''.join(Main_StName)
-    Street_Name[Main_StName]= Street_Name.get(Main_StName,[])
-    Street_Name[Main_StName].append(LinkID)
-for name in Street_Name:
-    if len(Street_Name[name])>2:
-        df = data.loc[data['LinkID'].isin(Street_Name[name])] # find the all rows with same street name
-        print (df)
-
-
-# In[157]:
-
-
-
-df = data.loc[data['LinkID'].isin(Street_Name["HenryMayoDr"])]
-print (df)
-for index,name in enumerate(Street_Name):
-    test_data = []
-    if index > 10:
-        break
-    if len(Street_Name[name])>2:
-        
-        print (name,Street_Name[name])
-        df = data.loc[data['LinkID'].isin(Street_Name[name])]
-        print (df)
-        '''
-        for val in Street_Name[name]:
-            print (val,data['LinkID'][val-1],data['JID1'][val-1],data['JID2'][val-1],data['StName'][val-1])
-            test_data.append([data['LinkID'][val-1],data['JID1'][val-1],data['JID2'][val-1],data['StName'][val-1]])
-        #print (test_data)
-        '''
-
-
-# In[154]:
-
-data.head(1500)
+        route_pt_saved =route_pt[end_index:] + route_pt[:start_index+1]
+        route_edge_saved= route_edge[end_index:] + route_edge[:start_index]
+    get_del_edge(route_pt_saved,route_pt,route_edge_saved,route_edge)
+    #for pt_id in route_pt_saved:
+    #    print ("or \"id\" = ",pt_id)
+    #for edge in route_edge_saved:
+    #    print ("or \"LinkID\" = ",edge)
+    return route_edge_saved,route_pt_saved
+def get_del_edge(route_pt_saved,route_pt,route_edge_saved,route_edge):
+    #return 0 
+    del_edges= []
+    del_pts = [v for v in route_pt if v not in route_pt_saved]
+    del_pts = sorted(del_pts)
+    #print ("delete_points",del_pts)
+    for i,pts in enumerate(del_pts):
+        for val in dic[pts]:
+            s_pt,l_pt = min(val,pts),max(val,pts)
+            if (s_pt,l_pt) in street_id:
+                del_edges.append(street_id[(s_pt,l_pt)])
+    for val in route_edge:
+        if val not in route_edge_saved and val not in del_edges:
+            del_edges.append(val)
+    print ("delete_edges = ",del_edges)
+    #for edge in del_edges:
+    #    print ("or \"LinkID\" = ",edge)
 
 
 # In[ ]:
 
-'''
-union_edge = {}
-merge_index = []
-#print("multiple road dictionary",multiple_road)
-print ("-------------")
 
-for index,row in enumerate(seen):
-    print (row)
-    print (seen_pt[index])
-    total = 0 
-    for element in row:
-        #print ("or \"LinkID\" = ",element)
-        union_edge[element] = union_edge.get(element,0)+1
-    for pt in seen_pt[index]:
-        if pt in multiple_road:
-            total+=1
-    print ("TOTAL 3-WAY:",total-1)# -1 for it go back to original pt and we calculate start pos twice
-    #if total -1 >=3:
-    merge_index.append(index)
-seen = sorted([v for i,v in enumerate(seen) if i in merge_index],key = lambda x : len(x))
-seen_pt = sorted([v for i,v in enumerate(seen_pt) if i in merge_index],key = lambda x : len(x))
-seen_edge = sorted([v for i,v in enumerate(seen_edge) if i in merge_index],key = lambda x : len(x))
-'''
+
+
+# In[ ]:
+
+
+
+
+# In[435]:
+
+def build_main_street_dic():
+    for index,(LinkID,JID1,JID2,StName) in enumerate(zip(data['LinkID'],data['JID1'],data['JID2'],data['StName'])):
+        Main_StName = StName.split(" ")
+        if Main_StName[0] in Direction:
+            Main_StName = Main_StName[1:]
+        if Main_StName[-1] in Direction:
+            Main_StName = Main_StName[:-1]
+        Main_StName= ''.join(Main_StName)
+        Street_Name[Main_StName]= Street_Name.get(Main_StName,[])
+        Street_Name[Main_StName].append(LinkID)
+
+
+# In[436]:
+
+
+
+
+data = pd.read_excel('./Network_LA/uc6_locals_junc_pair_v1.xlsx')
+Street_Name = {} # record which index is store in the name of streer
+Direction = ['E','N','S','W']
+build_main_street_dic() # call func
+#print ("streets #:",Street_Name["PioneerBlvd"])
+for index,name in enumerate(Street_Name):
+ df = data.loc[data['LinkID'].isin(Street_Name["PioneerBlvd"])] # find the all rows with same street name
+
+ multiple_road = {} # store which junction coneected to more than two roads
+ dic = {} # store junction A connected to junction B
+ street_id = {} # store pair of junction with the edge
+ now = datetime.now()
+ seen = [] # record the route edge
+ seen_edge = []
+ seen_pt = [] # record the  route point
+ 
+ multiple_road,dic,street_id = Build_dict(df)
+ '''
+ print ("-----",df.shape)
+ print ("length of df = ",len(df))
+ for i in range(len(df)):
+     row = df.iloc[i,:]
+     print (row[0],row[1],row[2])
+ print ("--------")
+ '''
+ '''
+ if len(Street_Name[name])>2:
+     df = data.loc[data['LinkID'].isin(Street_Name[name])] # find the all rows with same street name
+ if index > 10:
+     break
+ #print (df)
+ Build_dict(df)
+ '''
+ #print (multiple_road)
+ for start_pos in multiple_road:
+     for i in multiple_road[start_pos]:
+         #print ("round:",start_pos)
+         if DFS([start_pos],start_pos,i,seen,seen_pt,seen_edge) != None:
+             break
+ print ("total %d groups"%(len(seen)))
+ seen = sorted(seen,key = lambda x:len(x))
+ seen_pt = sorted(seen_pt,key = lambda x:len(x))
+ seen_edge = sorted(seen_edge,key = lambda x:len(x))
+ filename = "./Network_LA/uc6_02_05_UTM_locals_ND_Junctions.xlsx"
+ dif_group_pt,dif_group_edge = find_group_circle(seen_pt,seen_edge)
+ for route_pt,route_edge in zip(dif_group_pt,dif_group_edge):
+     #print ("\n\nnew round",route_pt)
+     print ("path =",read_pos(filename,route_pt,route_edge))
+ later = datetime.now()
+ difference = (later - now).total_seconds()
+ print ("total time for go through a steet is ",difference)
+ break
+
+
+# In[ ]:
+
+
+
+
+# In[ ]:
+
+
+
+
+# In[ ]:
+
+
 
