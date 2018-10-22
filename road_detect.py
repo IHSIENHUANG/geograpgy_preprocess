@@ -1,20 +1,20 @@
 
 # coding: utf-8
 
-# In[382]:
+# In[15]:
 
 import pandas as pd
 import numpy as np
 from datetime import datetime
 
 
-# In[383]:
+# In[16]:
 
 data = pd.read_excel('./Network_LA/uc6_locals_junc_pair_v1.xlsx')
 print (data.head(10))
 
 
-# In[431]:
+# In[29]:
 
 
 '''
@@ -46,9 +46,13 @@ def Build_dict(df):
         elif row[1] not in dic[row[2]]:
             dic[row[2]].append(row[1])
         smaller,bigger = min(row[1],row[2]),max(row[1],row[2])
-        street_id[(smaller,bigger)] = row[0]
+        if (smaller,bigger) in street_id:
+            All_Deleted_Edge.append([row[0]])
+            #street_id[(smaller,bigger)].append(row[0])
+        else:
+            street_id[(smaller,bigger)] = row[0]
     for num in dic:
-        if len(set(dic[num])) >=3:
+        if len(set(dic[num])) >=2:
             multiple_road[num] = dic[num]
     #print (multiple_road)
     print ("end reading data")
@@ -56,7 +60,7 @@ def Build_dict(df):
     
 
 
-# In[432]:
+# In[30]:
 
 #Utilize the DFS to find all the circle with the main street name
 #it might contains a lot of circles
@@ -83,7 +87,8 @@ def DFS(path,pre_element,next_element,seen,seen_pt,seen_edge):#seen saved the se
         return path 
     flag = None
     for new in dic[next_element]:
-        if new != pre_element and new not in path[1:]:# make sure the circle should be from head to head
+        #new != pre_element and 
+        if new not in path[1:]:# make sure the circle should be from head to head
             flag = DFS(path+[next_element],next_element,new,seen,seen_pt,seen_edge)
             if flag != None:
                 flag = True
@@ -93,7 +98,7 @@ def DFS(path,pre_element,next_element,seen,seen_pt,seen_edge):#seen saved the se
     return path
 
 
-# In[433]:
+# In[31]:
 
 # Because some circle should be sub-circle of the larger one
 # We need to Union all of them and find out how many group of large circle
@@ -109,7 +114,7 @@ def find_group_circle(seen_pt,seen_edge): # union all the circle and find out un
                 flag = True
                 break
         if flag == False:
-            print ((val))
+            #print ((val))
             dif_group_pt.append(val)
             dif_group_edge.append(seen_edge[i])
             '''
@@ -117,12 +122,12 @@ def find_group_circle(seen_pt,seen_edge): # union all the circle and find out un
                 print ("or \"id\" = ",pt_id)
             '''
             dif_group+=1
-    print ("Ending Find Group Circle")
+    #print ("Ending Find Group Circle")
     print ("total %d different group" %(dif_group))
     return dif_group_pt,dif_group_edge
 
 
-# In[434]:
+# In[32]:
 
 
 # read_pos:
@@ -133,10 +138,11 @@ def find_group_circle(seen_pt,seen_edge): # union all the circle and find out un
 # get_the_route_by_critical_pt:
 # The function is to find the path from the starting pt to ending pt which contains more junction
 # besides Route_pt is not sorted, it means it keep the situation how the pts coneected
+data_pos = pd.read_excel("./Network_LA/uc6_02_05_UTM_locals_ND_Junctions.xlsx")
 def read_pos(file_name,route_pt,route_edge): # read the position for the circle and find out the direction of the circle
-    print ("-----------start_read_pos_of_all_pt-----------------")
+    #print ("-----------start_read_pos_of_all_pt-----------------")
     #print (route_pt)
-    data_pos = pd.read_excel(file_name)
+    
     X_pos = []
     Y_pos = []
     for pt in route_pt:
@@ -149,7 +155,7 @@ def read_pos(file_name,route_pt,route_edge): # read the position for the circle 
         N_S_Flag = True
     return read_critical_pt(N_S_Flag,X_pos,Y_pos,route_pt,route_edge)
 def read_critical_pt(N_S_Flag,X_pos,Y_pos,route_pt,route_edge): #Use the direction to get the critical pt pair <northest,southest> or <eastest,westesst>
-    print ("------------start_get_the_critical_pt---------------")
+    #print ("------------start_get_the_critical_pt---------------")
     #print (route_pt)
     critical_pt1= critical_pt2 = -1 # store the boundary pt
     if N_S_Flag == True:
@@ -164,11 +170,11 @@ def read_critical_pt(N_S_Flag,X_pos,Y_pos,route_pt,route_edge): #Use the directi
         critical_pt2 = X_pos.index(min(X_pos)) # find the westest pt index
         critical_pt2 = route_pt[critical_pt2] # get the id of the point
         #print ("east_west_dir")
-    print ("critical pt=",critical_pt1,critical_pt2)
+    #print ("critical pt=",critical_pt1,critical_pt2)
     return get_the_route_by_critical_pt(critical_pt1,critical_pt2,route_pt,route_edge)
 def get_the_route_by_critical_pt(critical_pt1,critical_pt2,route_pt,route_edge):
-    print ("------------start_get_route---------------")
-    print (route_pt)
+    #print ("------------start_get_route---------------")
+    #print (route_pt)
     start_index = route_pt.index(critical_pt1)
     end_index = route_pt.index(critical_pt2)
     #print ("path index = ",start_index,end_index)
@@ -196,11 +202,17 @@ def get_del_edge(route_pt_saved,route_pt,route_edge_saved,route_edge):
         for val in dic[pts]:
             s_pt,l_pt = min(val,pts),max(val,pts)
             if (s_pt,l_pt) in street_id:
+                #for edge in street_id[(s_pt,l_pt)]:
                 del_edges.append(street_id[(s_pt,l_pt)])
+                #del_edges.append(edge)
+    #print (route_edge,route_edge_saved)
     for val in route_edge:
         if val not in route_edge_saved and val not in del_edges:
             del_edges.append(val)
-    print ("delete_edges = ",del_edges)
+    
+    if len(del_edges) !=0:
+        print ("delete_edges = ",del_edges)
+        All_Deleted_Edge.append(del_edges)
     #for edge in del_edges:
     #    print ("or \"LinkID\" = ",edge)
 
@@ -215,7 +227,7 @@ def get_del_edge(route_pt_saved,route_pt,route_edge_saved,route_edge):
 
 
 
-# In[435]:
+# In[33]:
 
 def build_main_street_dic():
     for index,(LinkID,JID1,JID2,StName) in enumerate(zip(data['LinkID'],data['JID1'],data['JID2'],data['StName'])):
@@ -229,19 +241,23 @@ def build_main_street_dic():
         Street_Name[Main_StName].append(LinkID)
 
 
-# In[436]:
+# In[34]:
 
 
 
-
+All_Deleted_Edge = []
 data = pd.read_excel('./Network_LA/uc6_locals_junc_pair_v1.xlsx')
 Street_Name = {} # record which index is store in the name of streer
 Direction = ['E','N','S','W']
 build_main_street_dic() # call func
 #print ("streets #:",Street_Name["PioneerBlvd"])
-for index,name in enumerate(Street_Name):
- df = data.loc[data['LinkID'].isin(Street_Name["PioneerBlvd"])] # find the all rows with same street name
 
+for index,name in enumerate(Street_Name):
+ #"PioneerBlvd" "HayvenhurstAve"
+ 
+ df = data.loc[data['LinkID'].isin(Street_Name[name])] # find the all rows with same street name
+ #if len(df) <2:
+ #    continue
  multiple_road = {} # store which junction coneected to more than two roads
  dic = {} # store junction A connected to junction B
  street_id = {} # store pair of junction with the edge
@@ -256,17 +272,12 @@ for index,name in enumerate(Street_Name):
  print ("length of df = ",len(df))
  for i in range(len(df)):
      row = df.iloc[i,:]
-     print (row[0],row[1],row[2])
+     #print (row[0],row[1],row[2])
+ #for data in data_tocsv:
+     print ("or \"LinkID\"= ",row[0])
  print ("--------")
  '''
- '''
- if len(Street_Name[name])>2:
-     df = data.loc[data['LinkID'].isin(Street_Name[name])] # find the all rows with same street name
- if index > 10:
-     break
- #print (df)
- Build_dict(df)
- '''
+ 
  #print (multiple_road)
  for start_pos in multiple_road:
      for i in multiple_road[start_pos]:
@@ -281,24 +292,44 @@ for index,name in enumerate(Street_Name):
  dif_group_pt,dif_group_edge = find_group_circle(seen_pt,seen_edge)
  for route_pt,route_edge in zip(dif_group_pt,dif_group_edge):
      #print ("\n\nnew round",route_pt)
-     print ("path =",read_pos(filename,route_pt,route_edge))
+     read_pos(filename,route_pt,route_edge)
+     #print ("path =",read_pos(filename,route_pt,route_edge))
  later = datetime.now()
  difference = (later - now).total_seconds()
  print ("total time for go through a steet is ",difference)
- break
+ #print (All_Deleted_Edge)
+ #if index > 100:
+ #break
+
+
+# In[41]:
+
+data_tocsv = []
+for row in All_Deleted_Edge:
+    #print (row)
+    for element in row:
+        data_tocsv.append(element)
+data_tocsv = sorted(data_tocsv)
+for val in data_tocsv:
+    print ("or \"LinkID\" = ",val)
+    #for element in row:
+     #   data_tocsv.append(element)
+
+#print (data_tocsv)
+
+
+# In[40]:
+
+df = pd.DataFrame(data_tocsv, columns=["LinkID"])
+df.to_csv('delete.csv', index=False)
+
+
+# In[38]:
+
+print (len(data_tocsv))
 
 
 # In[ ]:
 
-
-
-
-# In[ ]:
-
-
-
-
-# In[ ]:
-
-
+# 2089 for not delete only two junctions
 
